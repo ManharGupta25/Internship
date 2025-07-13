@@ -1,85 +1,107 @@
-The code takes in a dataset of ~2500 employees with their skills and roles.
-It creates a technical skill search bar outputting results in a relevance order
-determined by a bunch of language metrics (TFIDF, Probability and Levenschtein Distance (LD)) 
+# Technical Skills Search System
 
-Phase 1:
+A comprehensive skill search system that processes employee data to provide intelligent skill-based search capabilities using advanced language metrics and machine learning techniques.
 
-Utilizes Panda's to extract skills and roles from each of the employee entries. Role
-is considered the index_column. So, the program takes a section having only the
-technical skills associated with employees of that particular role with Pandas.
-Using string conversion methods, the skills data for a particular role is stored in 
-csv files pertaining to that role.
+## Overview
 
-A folder 'csv docs' is also created, having each of these csv files which correspond to a particular role. Each file,
-named as '<role>.csv', has the skills list of each employee associated with that role. Here, each
-employee skillset (list of skills) is a separate entry in the file. This folder and its files was largely meant for checking
-how data is being organised as string and list conversion methods were being applied.
+This system processes a dataset of approximately 2,500 employees with their associated skills and roles to create an intelligent technical skill search engine. The search results are ranked by relevance using a combination of:
 
-The data structures to be used later are created further.
-A separate list is created for each role, clubbing together the skills data from all
-employees of that role, unlike in csv docs where the files had the skills list of each employee separately.
-These lists are further put together into a 2d list which is inputted into the TFIDF vectorizer in phase 2, 
-for calculation of the TFIDF of a particular skill.
-  
-A folder (pickle_objs) is also created containing all the csv files for each role within a separate
-pickle (binary) file for it. This is done for efficient retrieval and processing incase they were 
-needed in later phases. Three other pickle files are also made.
+- **TF-IDF (Term Frequency-Inverse Document Frequency)** - Measures skill importance/uniqueness
+- **Probability Metrics** - Calculates skill frequency across the dataset
+- **Levenshtein Distance** - Handles fuzzy matching for partial queries
 
-First pickle file (Roles.pkl) contains the set of different roles that are present in the employee dataset. 
+## System Architecture
 
-Second (Tech_Skills_List.pkl) contains a list which has all the different role lists concatenated into one.
-This creates a unified list having every technical skill with all its repetitions without regard to roles.
+The system is divided into three main phases:
 
-The third (Tech_Skills_Vocab.pkl) contains a list which acts as the technical skills vocabulary.
-Essentially, a set is taken over this unifier list. Since every duplicate entry is removed, 
-it creates a vocabulary, having all the technical skills that appear
-in the dataset without any repetition. This set is then converted into a list and stored in this pickle file.
+### Phase 1: Data Processing & Organization
 
-The fourth (ROWS.pkl) stores the 2d array that was generated earlier for it to be used in Phase 2.
+**Objective**: Extract, organize, and structure employee skills data by role.
 
-Phase 2:
+**Key Operations**:
+- Utilizes Pandas to extract skills and roles from employee entries
+- Treats roles as index columns for data segmentation
+- Converts skills data into structured CSV files organized by role
+- Creates data structures for subsequent processing phases
 
-Divided into two parts based on TFIDF calculation and probability calculation:-
+**Output Files**:
+- `csv_docs/` folder containing individual `<role>.csv` files
+- `pickle_objs/` folder with binary files for efficient data retrieval:
+ - `Roles.pkl` - Set of unique roles in the dataset
+ - `Tech_Skills_List.pkl` - Unified list of all technical skills (with duplicates)
+ - `Tech_Skills_Vocab.pkl` - Vocabulary of unique technical skills
+ - `ROWS.pkl` - 2D array for TF-IDF processing
 
-TFIDF:
-Calculates TFIDF of every skill. Each role is considered as separate document in this case as we are using
-the 2d array generated in Phase 1.
-Sklearn TFIDFVectorizer is used to generate TFIDF matrix for each skill. An average TFIDF of each word is taken
-across the documents (roles) to get a single metric defining the 'importance/uniqueness' of the word across the whole
-dataset. This average normalizes the sum of the word's TFIDF's by the number of files (roles) that have that particular
-skill rather than the total number of roles in the dataset.
-Creates a sorted dictionary that has the skills (keys) sorted 
-based on their TFIDF values (values) in descending order. This is stored in a binary file(Avg_Tfidf.pkl) for later use in Phase 3.
+**Data Structure**:
+- Individual CSV files contain separate entries for each employee's skillset
+- Role-based lists aggregate all skills for employees within each role
+- 2D array structure prepared for TF-IDF vectorization
 
-Probability:
-Calculates probability of the skills in a particular dataset. The probability of a technical skill is taken as
-the total number of times it appears across the entire dataset (its count in the unifier list) divided by total number of 
-skills present in the entire dataset (length of the unifier list created in Phase 1 and stored in (Tech_Skills_List.pkl))
-Creates a sorted dictionary that has the skills (keys) sorted based on their probability values (values) in 
-descending order. This is stored in a binary file (Probability.pkl) for later use in Phase 3
+### Phase 2: Metric Calculation
 
+**Objective**: Calculate relevance metrics for intelligent search ranking.
 
-Phase 3:
-Implements word-level matching. It intakes three (or more) letters from the user from the terminal and goes
-through the sorted TFIDF dictionary to pick the words which have their first three (or more) letters
-matching with the input. Since the dictionary is sorted in a descending manner based on TFIDF values,
-the order in which the words are picked are from highest TFIDF (highest relevance/importance)
-to lower TFIDF (lower relevance) for the search input that was given by the user.
+#### TF-IDF Calculation
+- Treats each role as a separate document
+- Uses scikit-learn's TFIDFVectorizer to generate TF-IDF matrix
+- Calculates average TF-IDF across all roles for each skill
+- Normalizes by the number of roles containing each skill
+- Outputs: `Avg_Tfidf.pkl` - Sorted dictionary (skills → TF-IDF values)
 
-This creates a list 'Selected_Words' which is a list of skills with highest TFIDF's and their 
-first three (or more) letters matching the search input.
-Simultaneously, a list of 'leftover' or non-matching words is also created. In case this list of 'base/matching' 
-words is smaller than 4, Levenschtein Distance of each 'leftover' word from the 'base_word' (matching word
-with highest TFIDF) is computed. Levenshtein Distance is computed using enchant module
-A separate function sorts these distance in ascending order (lowest first)
-and appends words with lowest distance to the list of selected words. For an empty 'Selected_words', words with
-the lowest LD from the three input letters are added to the list.
+#### Probability Calculation
+- Calculates skill probability: `count(skill) / total_skills`
+- Measures frequency of each skill across the entire dataset
+- Outputs: `Probability.pkl` - Sorted dictionary (skills → probability values)
 
-In essence, TFIDF becomes the first layer of relevance. LD substitutes incase not many letters are present 
-inside the function. 
+### Phase 3: Search Implementation
 
-The next section involves going through the words with the highest probability sequentially. Since our
-probability dictionary is already sorted, we normally iterate through the keys of the Prob_Val dictionary.
-The LD of each word wrt each of the selected_words is computed. These distances are sorted and the words
-appended to the final output list 'Tech_list'. So Probability combined with LD becomes the second layer
-of relevance.
+**Objective**: Implement intelligent search with multi-layered relevance ranking.
+
+#### Primary Layer: TF-IDF Matching
+- Accepts user input (3+ characters)
+- Matches skills with highest TF-IDF values first
+- Creates `Selected_Words` list of matching high-relevance skills
+- Handles partial matches through prefix matching
+
+#### Secondary Layer: Levenshtein Distance
+- Activates when fewer than 4 primary matches found
+- Computes edit distance between input and remaining skills
+- Sorts by ascending distance (closest matches first)
+- Appends best matches to `Selected_Words`
+
+#### Tertiary Layer: Probability + Distance
+- Processes high-probability skills sequentially
+- Calculates Levenshtein distance against selected words
+- Sorts and appends to final output list `Tech_list`
+- Combines probability weighting with distance metrics
+
+## Features
+
+- **Multi-layered Relevance**: Combines TF-IDF, probability, and edit distance for comprehensive ranking
+- **Fuzzy Matching**: Handles typos and partial queries through Levenshtein distance
+- **Role-based Organization**: Maintains skill-role associations for targeted searches
+- **Efficient Storage**: Uses pickle files for fast data retrieval
+- **Scalable Architecture**: Designed to handle large employee datasets
+
+## Dependencies
+
+- **pandas** - Data manipulation and analysis
+- **scikit-learn** - TF-IDF vectorization
+- **enchant** - Levenshtein distance calculation
+- **pickle** - Binary data serialization
+
+## Usage
+
+1. **Data Input**: Provide employee dataset with skills and roles
+2. **Processing**: Run Phase 1 to organize data, Phase 2 to calculate metrics
+3. **Search**: Use Phase 3 to perform intelligent skill searches
+4. **Results**: Receive ranked skill matches based on relevance metrics
+
+## Output Structure
+
+Search results are ranked by:
+1. **Primary**: TF-IDF relevance (importance/uniqueness)
+2. **Secondary**: Levenshtein distance (similarity to query)
+3. **Tertiary**: Probability combined with distance metrics
+
+This multi-layered approach ensures that search results are both relevant and comprehensive, handling both exact matches and approximate queries effectively.
